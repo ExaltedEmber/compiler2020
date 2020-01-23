@@ -1,0 +1,2 @@
+C:\Users\MattO\Documents\SP2020 COMPILER\Compiler2020\obj\Debug\Compiler2020.njsprojAssemblyReference.cache
+C:\Users\MattO\Documents\SP2020 COMPILER\Compiler2020\bin\Microsoft.NodejsTools.WebRole.dll

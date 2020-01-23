@@ -1,0 +1,17 @@
+{
+  "name": "compiler2020",
+  "version": "0.0.0",
+  "description": "Compiler2020",
+  "main": "app.js",
+  "author": {
+    "name": ""
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "devDependencies": {
+    "@types/node": "^8.0.14",
+    "typescript": "^3.7.4"
+  }
+}
