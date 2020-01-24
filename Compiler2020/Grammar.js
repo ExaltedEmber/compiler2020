@@ -14,7 +14,7 @@ class Grammar {
             }
             else {
                 try {
-                    console.log(rhs);
+                    //console.log(rhs);
                     let r = new RegExp(rhs);
                     this.grammarMap.set(lhs, r);
                 }
