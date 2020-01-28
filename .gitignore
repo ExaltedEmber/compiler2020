@@ -3,3 +3,6 @@
 **/node_modules
 *.sln
 *.njspro
+*.cache
+Compiler2020/obj/Debug/Compiler2020.njsproj.FileListAbsolute.txt
+Compiler2020/obj/Release/Compiler2020.njsproj.FileListAbsolute.txt
