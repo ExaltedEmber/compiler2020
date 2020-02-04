@@ -1,4 +1,4 @@
-import { error } from "util";
+import { error } from "console";
 export
 
     class Grammar {

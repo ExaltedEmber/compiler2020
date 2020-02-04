@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const util_1 = require("util");
+const console_1 = require("console");
 class Grammar {
     constructor(s) {
         this.grammarMap = new Map();
@@ -10,7 +10,7 @@ class Grammar {
             let lhs = s2[0].trim();
             let rhs = s2[1].trim();
             if (this.grammarMap.has(lhs)) {
-                throw new util_1.error("Identifier already exists");
+                throw new console_1.error("Identifier already exists");
             }
             else {
                 try {
@@ -19,7 +19,7 @@ class Grammar {
                     this.grammarMap.set(lhs, r);
                 }
                 catch (e) {
-                    throw new util_1.error("Invalid Regex");
+                    throw new console_1.error("Invalid Regex");
                 }
             }
         }
