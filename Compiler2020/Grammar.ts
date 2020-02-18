@@ -2,7 +2,8 @@ import { error } from "console";
 export
 
     class Grammar {
-    grammarMap: Map<string, RegExp> = new Map();
+    terminals: Map<string, RegExp> = new Map();
+    
     constructor(s: string) {
         let lines = s.split("\n");
 
@@ -10,14 +11,14 @@ export
             let s2 = lines[num].split("->");
             let lhs = s2[0].trim();
             let rhs = s2[1].trim();
-            if (this.grammarMap.has(lhs)) {
+            if (this.terminals.has(lhs)) {
                 throw new error("Identifier already exists");
             }
             else {
                 try {
                     //console.log(rhs);
-                    let r = new RegExp(rhs);
-                    this.grammarMap.set(lhs, r);
+                    let r = new RegExp(rhs, "gy");
+                    this.terminals.set(lhs, r);
                 }
                 catch(e)
                 {
@@ -25,5 +26,11 @@ export
                 }
             }
         }
+
+        if (!this.terminals.has("WHITESPACE")) {
+            let r = new RegExp("\\s+", "gy");
+            this.terminals.set("WHITESPACE", r);
+        }
+
     }
 }
