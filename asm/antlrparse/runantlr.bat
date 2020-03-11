@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Java\jre1.8.0_241\bin\java.exe" -cp "C:\Users\MattO\Downloads\antlr-4.8-complete.jar" org.antlr.v4.Tool -Dlanguage=JavaScript "%1"

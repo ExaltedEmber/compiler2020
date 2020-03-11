@@ -1,0 +1,2 @@
+C:\Users\MattO\Documents\SP2020 COMPILER\asm\antlrparse\obj\Debug\antlrparse.njsprojAssemblyReference.cache
+C:\Users\MattO\Documents\SP2020 COMPILER\asm\antlrparse\bin\Microsoft.NodejsTools.WebRole.dll

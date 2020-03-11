@@ -1,4 +1,3 @@
-import { error } from "console";
 export
 
     class Grammar {
@@ -12,7 +11,7 @@ export
             let lhs = s2[0].trim();
             let rhs = s2[1].trim();
             if (this.terminals.has(lhs)) {
-                throw new error("Identifier already exists");
+                throw new console.error("Identifier already exists");
             }
             else {
                 try {
@@ -22,7 +21,7 @@ export
                 }
                 catch(e)
                 {
-                    throw new error("Invalid Regex")
+                    throw new console.error("Invalid Regex")
                 }
             }
         }
