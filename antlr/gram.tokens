@@ -1,0 +1,17 @@
+SEMI=1
+WHILE=2
+LP=3
+RP=4
+IF=5
+ELSE=6
+RETURN=7
+LBR=8
+RBR=9
+NUM=10
+WHITESPACE=11
+COMMENT=12
+';'=1
+'while'=2
+'if'=5
+'else'=6
+'return'=7
