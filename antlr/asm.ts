@@ -38,7 +38,7 @@ class SymbolTable {
 
 let asmCode: string[] = [];
 let symtable = new SymbolTable;
-let stringPool: Map<string, string>;    //key=string const, val=label
+let stringPool= new Map<string, string>();    //key=string const, val=label
 
 function emit(instr: string) {
     asmCode.push(instr);
@@ -381,13 +381,14 @@ function factorNodeCode(n: TreeNode): VarType {
             //make sure ID exists, unnecessary check but doesn't hurt
             if (!symtable.has(child.token.lexeme))
                 throw new console.error("ID does not exist");
-            let v2 = symtable.get(child.token.lexeme);
-            pull value from memory  //(if var is number, var holds value. if var is string, var holds address);
-            push to stack 
+            let v2 = symtable.get(child.token.lexeme);  //pull value from memory (if var is number, var holds value. if var is string, var holds address);
+            emit(`push qword [${v2.location}]`);        //push to stack 
+
 
         case "STRING_CONSTANT":
             let adr = stringconstantNodeCode(n.children[0]);
             emit(`push qword ${adr}`);  // Push address to stack
+            return VarType.STRING;
         default:
             ICE();
     }
@@ -395,8 +396,8 @@ function factorNodeCode(n: TreeNode): VarType {
 
 function stringconstantNodeCode(n: TreeNode) {
     let s = n.token.lexeme;
-    strip leading and trailing quotation marks
-    handle backslash escapes
+    //strip leading and trailing quotation marks
+    //handle backslash escapes    // \\ \n \"
     if (!stringPool.has(s))
         stringPool.set(s, label());
     return stringPool.get(s); // return the label

@@ -3,6 +3,7 @@ SEMI : ';';
 WHILE : 'while';
 LP : [(];
 RP : [)];
+EQ : [=];
 IF : 'if';
 ELSE : 'else';
 RETURN : 'return';
@@ -23,9 +24,10 @@ ID : [A-Za-z_][A-Za-z_0-9]*;
 WHITESPACE : [ \r\n\t]+ -> skip;
 COMMENT : '//' .*?'\n' -> skip;
 
-program : var-decl-list braceblock;
-var-decl-list : var-decl SEMI var-decl-list | ;
-var-decl : TYPE ID;
+
+program : var_decl_list braceblock;
+var_decl_list : var_decl SEMI var_decl_list | ;
+var_decl : TYPE ID;
 stmts : stmt stmts | ;
 stmt : cond | loop | return_stmt SEMI | assign SEMI;
 assign : ID EQ expr;

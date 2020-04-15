@@ -32,6 +32,7 @@ class SymbolTable {
 }
 let asmCode = [];
 let symtable = new SymbolTable;
+let stringPool = new Map(); //key=string const, val=label
 function emit(instr) {
     asmCode.push(instr);
 }
@@ -48,6 +49,8 @@ function makeAsm(root) {
     programNodeCode(root);
     emit("ret");
     emit("section .data");
+    outputSymbolTableInfo();
+    outputStringPoolInfo();
     return asmCode.join("\n");
 }
 exports.makeAsm = makeAsm;
@@ -338,7 +341,7 @@ function typecastNodeCode(n) {
     }
 }
 function factorNodeCode(n) {
-    //factor -> NUM | FPNUM | LP expr RP
+    //factor -> NUM | FPNUM | LP expr RP | STRING_CONSTANT | ID
     let child = n.children[0];
     switch (child.sym) {
         case "NUM":
@@ -355,9 +358,27 @@ function factorNodeCode(n) {
             emit(`mov rax, __float64__(${fs})`);
             emit(`push rax`);
             return VarType.FLOAT;
+        case "ID":
+            //make sure ID exists, unnecessary check but doesn't hurt
+            if (!symtable.has(child.token.lexeme))
+                throw new console.error("ID does not exist");
+            let v2 = symtable.get(child.token.lexeme); //pull value from memory (if var is number, var holds value. if var is string, var holds address);
+            emit(`push qword [${v2.location}]`); //push to stack 
+        case "STRING_CONSTANT":
+            let adr = stringconstantNodeCode(n.children[0]);
+            emit(`push qword ${adr}`); // Push address to stack
+            return VarType.STRING;
         default:
             ICE();
     }
+}
+function stringconstantNodeCode(n) {
+    let s = n.token.lexeme;
+    //strip leading and trailing quotation marks
+    //handle backslash escapes    // \\ \n \"
+    if (!stringPool.has(s))
+        stringPool.set(s, label());
+    return stringPool.get(s); // return the label
 }
 function relNodeCode(n) {
     //rel -> sum RELOP sum | sum
@@ -498,5 +519,22 @@ function convertStackTopToZeroOrOneInteger(type) {
 function moveBytesFromStackToLocation(loc) {
     emit("pop rax");
     emit(`mov [${loc}], rax`);
+}
+function outputSymbolTableInfo() {
+    for (let vname of symtable.table.keys()) {
+        let vinfo = symtable.get(vname);
+        emit(`${vinfo.location}:`);
+        emit("dq 0");
+    }
+}
+function outputStringPoolInfo() {
+    for (let key in stringPool.keys()) {
+        let lbl = stringPool.get(key);
+        emit(`${lbl}:`);
+        for (let i = 0; i < key.length; ++i) {
+            emit(`db ${key.charCodeAt(i)}`);
+        }
+        emit("db 0"); //null terminator
+    }
 }
 //# sourceMappingURL=asm.js.map
