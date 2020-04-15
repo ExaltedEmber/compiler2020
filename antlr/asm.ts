@@ -6,8 +6,39 @@ enum VarType {
     STRING
 }
 
+class VarInfo {
+    type: VarType;
+    location: string; //asm label
+    constructor(t: VarType, location: string) {
+        this.location = location;
+        this.type = t;
+    }
+
+}
+
+class SymbolTable {
+    table: Map<string, VarInfo>;
+    constructor() {
+        this.table = new Map();
+    }
+    get(name: string) {
+        if (!this.table.has(name))
+            throw new console.error("DNE");
+        return this.table.get(name);
+    }
+    set(name: string, v: VarInfo) {
+        if (this.table.has(name))
+            throw new console.error("Redeclaration");
+        this.table.set(name, v);
+    }
+    has(name: string) {
+        return this.table.has(name);
+    }
+}
 
 let asmCode: string[] = [];
+let symtable = new SymbolTable;
+let stringPool: Map<string, string>;    //key=string const, val=label
 
 function emit(instr: string) {
     asmCode.push(instr);
@@ -27,6 +58,8 @@ export function makeAsm(root: TreeNode) {
     programNodeCode(root);
     emit("ret");
     emit("section .data");
+    outputSymbolTableInfo();
+    outputStringPoolInfo();
     return asmCode.join("\n");
 }
 
@@ -52,7 +85,7 @@ function stmtsNodeCode(n: TreeNode) {
 }
 
 function stmtNodeCode(n: TreeNode) {
-    //stmt -> cond | loop | return_stmt SEMI
+    //stmt -> cond | loop | return_stmt SEMI | assign SEMI
     let c = n.children[0];
     switch (c.sym) {
         case "cond":
@@ -61,8 +94,36 @@ function stmtNodeCode(n: TreeNode) {
             loopNodeCode(c); break;
         case "return_stmt":
             returnstmtNodeCode(c); break;
+        case "assign":
+            assignNodeCode(c); break;
         default:
             ICE();
+    }
+}
+
+function assignNodeCode(n: TreeNode) {
+    // assign -> ID EQ expr
+    let t: VarType = exprNodeCode(n.children[2]);
+    let vname = n.children[0].token.lexeme;
+    if (symtable.get(vname).type !== t)
+        throw new console.error("Type Mismatch");
+    moveBytesFromStackToLocation(symtable.get(vname).location);
+}
+
+function vardeclNodeCode(n: TreeNode) {
+    //var-decl -> TYPE ID
+    let vname = n.children[1].token.lexeme;
+    let vtype = typeNodeCode(n.children[0]);
+    symtable.set(vname, new VarInfo(vtype, label()));
+}
+
+function typeNodeCode(n: TreeNode): VarType {
+    //TYPE
+    let c = n.children[0].sym;
+    switch (c) {
+        case "int": return VarType.INTEGER; break;
+        case "double": return VarType.FLOAT; break;
+        case "string": return VarType.STRING; break;
     }
 }
 
@@ -299,7 +360,7 @@ function typecastNodeCode(n: TreeNode): VarType {
 
 
 function factorNodeCode(n: TreeNode): VarType {
-    //factor -> NUM | FPNUM | LP expr RP
+    //factor -> NUM | FPNUM | LP expr RP | STRING_CONSTANT | ID
     let child = n.children[0];
     switch (child.sym) {
         case "NUM":
@@ -316,10 +377,31 @@ function factorNodeCode(n: TreeNode): VarType {
             emit(`mov rax, __float64__(${fs})`);
             emit(`push rax`);
             return VarType.FLOAT;
+        case "ID":
+            //make sure ID exists, unnecessary check but doesn't hurt
+            if (!symtable.has(child.token.lexeme))
+                throw new console.error("ID does not exist");
+            let v2 = symtable.get(child.token.lexeme);
+            pull value from memory  //(if var is number, var holds value. if var is string, var holds address);
+            push to stack 
+
+        case "STRING_CONSTANT":
+            let adr = stringconstantNodeCode(n.children[0]);
+            emit(`push qword ${adr}`);  // Push address to stack
         default:
             ICE();
     }
 }
+
+function stringconstantNodeCode(n: TreeNode) {
+    let s = n.token.lexeme;
+    strip leading and trailing quotation marks
+    handle backslash escapes
+    if (!stringPool.has(s))
+        stringPool.set(s, label());
+    return stringPool.get(s); // return the label
+}
+
 
 function relNodeCode(n: TreeNode): VarType {
     //rel -> sum RELOP sum | sum
@@ -435,5 +517,28 @@ function convertStackTopToZeroOrOneInteger(type: VarType) {
     }
     else {
         throw new console.error("bad type");
+    }
+}
+
+function moveBytesFromStackToLocation(loc: string) {
+    emit("pop rax");
+    emit(`mov [${loc}], rax`);
+}
+
+function outputSymbolTableInfo() {
+    for (let vname of symtable.table.keys()) {
+        let vinfo = symtable.get(vname);
+        emit(`${vinfo.location}:`);
+        emit("dq 0");
+    }
+}
+function outputStringPoolInfo() {
+    for (let key in stringPool.keys()) {
+        let lbl = stringPool.get(key);
+        emit(`${lbl}:`);
+        for (let i = 0; i < key.length; ++i) {
+            emit(`db ${key.charCodeAt(i)}`);
+        }
+        emit("db 0");   //null terminator
     }
 }

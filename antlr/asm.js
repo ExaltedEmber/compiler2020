@@ -6,7 +6,32 @@ var VarType;
     VarType[VarType["FLOAT"] = 1] = "FLOAT";
     VarType[VarType["STRING"] = 2] = "STRING";
 })(VarType || (VarType = {}));
+class VarInfo {
+    constructor(t, location) {
+        this.location = location;
+        this.type = t;
+    }
+}
+class SymbolTable {
+    constructor() {
+        this.table = new Map();
+    }
+    get(name) {
+        if (!this.table.has(name))
+            throw new console.error("DNE");
+        return this.table.get(name);
+    }
+    set(name, v) {
+        if (this.table.has(name))
+            throw new console.error("Redeclaration");
+        this.table.set(name, v);
+    }
+    has(name) {
+        return this.table.has(name);
+    }
+}
 let asmCode = [];
+let symtable = new SymbolTable;
 function emit(instr) {
     asmCode.push(instr);
 }
@@ -44,7 +69,7 @@ function stmtsNodeCode(n) {
     stmtsNodeCode(n.children[1]);
 }
 function stmtNodeCode(n) {
-    //stmt -> cond | loop | return_stmt SEMI
+    //stmt -> cond | loop | return_stmt SEMI | assign SEMI
     let c = n.children[0];
     switch (c.sym) {
         case "cond":
@@ -56,8 +81,40 @@ function stmtNodeCode(n) {
         case "return_stmt":
             returnstmtNodeCode(c);
             break;
+        case "assign":
+            assignNodeCode(c);
+            break;
         default:
             ICE();
+    }
+}
+function assignNodeCode(n) {
+    // assign -> ID EQ expr
+    let t = exprNodeCode(n.children[2]);
+    let vname = n.children[0].token.lexeme;
+    if (symtable.get(vname).type !== t)
+        throw new console.error("Type Mismatch");
+    moveBytesFromStackToLocation(symtable.get(vname).location);
+}
+function vardeclNodeCode(n) {
+    //var-decl -> TYPE ID
+    let vname = n.children[1].token.lexeme;
+    let vtype = typeNodeCode(n.children[0]);
+    symtable.set(vname, new VarInfo(vtype, label()));
+}
+function typeNodeCode(n) {
+    //TYPE
+    let c = n.children[0].sym;
+    switch (c) {
+        case "int":
+            return VarType.INTEGER;
+            break;
+        case "double":
+            return VarType.FLOAT;
+            break;
+        case "string":
+            return VarType.STRING;
+            break;
     }
 }
 function returnstmtNodeCode(n) {
@@ -437,5 +494,9 @@ function convertStackTopToZeroOrOneInteger(type) {
     else {
         throw new console.error("bad type");
     }
+}
+function moveBytesFromStackToLocation(loc) {
+    emit("pop rax");
+    emit(`mov [${loc}], rax`);
 }
 //# sourceMappingURL=asm.js.map
