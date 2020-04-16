@@ -1,7 +1,7 @@
 {
-  "name": "compiler2020",
+  "name": "compilero",
   "version": "0.0.0",
-  "description": "Compiler2020",
+  "description": "compilero",
   "main": "app.js",
   "author": {
     "name": ""
@@ -12,6 +12,6 @@
   },
   "devDependencies": {
     "@types/node": "^8.0.14",
-    "typescript": "^3.7.4"
+    "typescript": "^3.2.2"
   }
 }

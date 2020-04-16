@@ -6,10 +6,11 @@ class Grammar
     nonterminals: Map<string, string[][]> = new Map();  //after empty line
     nullable: Set<string> = new Set(); // nullables
     //first and follow sets go here too 
+    first: Map<string, Set<string>> = new Map();
     constructor(s: string)
     {
         let lines = s.split("\n");
-        let terminalPhase = true;
+        let terminalPhase = true;  
 
         for (let num = 0; num < lines.length - 1; num++) {
 
@@ -49,7 +50,7 @@ class Grammar
                     let innerArray = elem.split(" ");
                     let cleanArray = []
                     for (let z of innerArray)
-                        if (z != "") {
+                        if (z != "" && z != "lambda") {
                             cleanArray.push(z);
                         }
 
@@ -65,6 +66,12 @@ class Grammar
             }
 
         }
+
+        this.getNullable();
+        //this.getFirst();
+
+     
+
         /*
         let visited = new Set<string>();
         this.searchGrammar(visited, this.nonterminals.keys().next().value);
@@ -104,18 +111,6 @@ class Grammar
 
     getNullable(){
         this.nullable = new Set()
-        //repeat                 until nullable stabilizes
-        /*        
-        let nullable = empty set
-        repeat
-        for each nonterminal N:
-            if N not in nullable:
-                for all productions P with lhs of N:
-                    if all symbols in P are nullable:
-                         if N is not in nullable:
-                            nullable = union(nullable, N)
-        until nullable stabilizes*/
-
         let stable = true;
         do {
             stable = true;
@@ -123,7 +118,15 @@ class Grammar
                 if (!this.nullable.has(N)) {
                     //for all productions P with lhs of N:
                     for (let P of this.nonterminals.get(N)) {
-                        if (P.every((sym: string) => { return this.nullable.has(sym) || sym == "lambda" })) {
+                        if (P.length > 0) {
+                            if (P.every((sym: string) => { return this.nullable.has(sym) })) {
+                                if (!this.nullable.has(N)) {
+                                    this.nullable.add(N);
+                                    stable = false;
+                                }
+                            }
+                        }
+                        else {
                             if (!this.nullable.has(N)) {
                                 this.nullable.add(N);
                                 stable = false;
@@ -137,4 +140,64 @@ class Grammar
 
         return this.nullable;
     }
+
+    getFirst() {
+        for (let t of this.terminals.keys()) {
+            this.first.set(t, new Set<string>().add(t));
+        }
+        let count = 0;
+        let stable = true;
+        do {
+            stable = true;
+            for (let N of this.nonterminals.keys()) {
+                let s = this.first.get(N);
+                if (s == undefined) {
+                    s = new Set<string>();
+                }
+                let startSize = s.size;
+                for (let P of this.nonterminals.get(N)) {
+                    for (let x of P) {
+                        if (x == N) {
+                            break;
+                        }
+                        else if (!this.nonterminals.has(x)) {
+                            s.add(x);
+                            stable = false;
+                            break;
+                        }
+                        else{
+                            if (this.first.has(x)) {
+                                let s2 = this.first.get(x);
+                                s2.forEach(s.add, s)
+
+                            }
+                            if (!this.nullable.has(x))
+                                break;
+                        }
+                    }
+                }
+                if (startSize < this.first.size) {
+                    stable = false;
+                    this.first.set(N, s);
+                }
+            }
+            count++;
+        }
+        while(!stable && count <= this.nonterminals.size + 50)
+        return this.first;
+    }
+
+    printTest() {
+
+        console.log(this.nullable);
+
+        for (let p of this.nonterminals.keys()) {
+            console.log(p + "=> \t" + this.nonterminals.get(p));
+            console.log("first: \t");
+            console.log(this.first.get(p));
+            console.log("\n");
+
+        }
+    }
+
 }
