@@ -15,7 +15,7 @@ class Grammar
 
             if (lines[num] == "")
             {
-                terminalPhase = !terminalPhase;
+                terminalPhase = false; //!terminalPhase
                 continue;
             }
 
@@ -65,7 +65,7 @@ class Grammar
             }
 
         }
-
+        /*
         let visited = new Set<string>();
         this.searchGrammar(visited, this.nonterminals.keys().next().value);
         
@@ -84,7 +84,7 @@ class Grammar
         if (!this.terminals.has("WHITESPACE")) {
             let r = new RegExp("\\s+", "gy");
             this.terminals.set("WHITESPACE", r);
-        }
+        }*/
 
     }
 

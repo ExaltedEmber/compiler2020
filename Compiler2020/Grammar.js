@@ -1,14 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 class Grammar {
+    //first and follow sets go here too 
     constructor(s) {
         this.terminals = new Map(); //Above empty line
         this.nonterminals = new Map(); //after empty line
+        this.nullable = new Set(); // nullables
         let lines = s.split("\n");
         let terminalPhase = true;
         for (let num = 0; num < lines.length - 1; num++) {
             if (lines[num] == "") {
-                terminalPhase = !terminalPhase;
+                terminalPhase = false; //!terminalPhase
                 continue;
             }
             let s2 = lines[num].split("->");
@@ -52,21 +54,26 @@ class Grammar {
                 }
             }
         }
-        let visited = new Set();
+        /*
+        let visited = new Set<string>();
         this.searchGrammar(visited, this.nonterminals.keys().next().value);
+        
         for (let t of this.terminals)
             if (!visited.has(t[0]))
                 throw new console.error("Unused Terminal");
+
         for (let t of this.nonterminals)
             if (!visited.has(t[0]))
                 throw new console.error("Unused Nonterminal");
+
         for (let t of visited)
             if (!this.terminals.has(t) && !this.nonterminals.has(t))
                 throw new console.error("Undefined Symbol");
+
         if (!this.terminals.has("WHITESPACE")) {
             let r = new RegExp("\\s+", "gy");
             this.terminals.set("WHITESPACE", r);
-        }
+        }*/
     }
     searchGrammar(visited, curr) {
         if (visited.has(curr))
@@ -79,6 +86,38 @@ class Grammar {
                 this.searchGrammar(visited, elem);
             }
         }
+    }
+    getNullable() {
+        this.nullable = new Set();
+        //repeat                 until nullable stabilizes
+        /*
+        let nullable = empty set
+        repeat
+        for each nonterminal N:
+            if N not in nullable:
+                for all productions P with lhs of N:
+                    if all symbols in P are nullable:
+                         if N is not in nullable:
+                            nullable = union(nullable, N)
+        until nullable stabilizes*/
+        let stable = true;
+        do {
+            stable = true;
+            for (let N of this.nonterminals.keys()) {
+                if (!this.nullable.has(N)) {
+                    //for all productions P with lhs of N:
+                    for (let P of this.nonterminals.get(N)) {
+                        if (P.every((sym) => { return this.nullable.has(sym) || sym == "lambda"; })) {
+                            if (!this.nullable.has(N)) {
+                                this.nullable.add(N);
+                                stable = false;
+                            }
+                        }
+                    }
+                }
+            }
+        } while (!stable);
+        return this.nullable;
     }
 }
 exports.Grammar = Grammar;
