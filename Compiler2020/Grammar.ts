@@ -4,6 +4,8 @@ class Grammar
 {
     terminals: Map<string, RegExp> = new Map(); //Above empty line
     nonterminals: Map<string, string[][]> = new Map();  //after empty line
+    nullable: Set<string> = new Set(); // nullables
+    //first and follow sets go here too 
     constructor(s: string)
     {
         let lines = s.split("\n");
@@ -98,5 +100,41 @@ class Grammar
                 this.searchGrammar(visited, elem)
             }
         }
+    }
+
+    getNullable(){
+        this.nullable = new Set()
+        //repeat                 until nullable stabilizes
+        /*        
+        let nullable = empty set
+        repeat
+        for each nonterminal N:
+            if N not in nullable:
+                for all productions P with lhs of N:
+                    if all symbols in P are nullable:
+                         if N is not in nullable:
+                            nullable = union(nullable, N)
+        until nullable stabilizes*/
+
+        let stable = true;
+        do {
+            stable = true;
+            for (let N of this.nonterminals.keys()) {
+                if (!this.nullable.has(N)) {
+                    //for all productions P with lhs of N:
+                    for (let P of this.nonterminals.get(N)) {
+                        if (P.every((sym: string) => { return this.nullable.has(sym) || sym == "lambda" })) {
+                            if (!this.nullable.has(N)) {
+                                this.nullable.add(N);
+                                stable = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        while (!stable)
+
+        return this.nullable;
     }
 }
