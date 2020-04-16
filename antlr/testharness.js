@@ -45,6 +45,7 @@ function fmt(i) {
 }
 //like the Unix (tm) nl utility: Number Lines
 function nl(x) {
+    x = x.replace(/\r\n/g, "\n");
     let tmp = x.split("\n");
     for (let i = 1; i <= tmp.length; ++i) {
         let txt = /(.*?)\s*$/.exec(tmp[i - 1])[1];
@@ -150,9 +151,9 @@ function printSummary() {
             s2 = "Bonus group " + i + ": OK:         ";
             s3 = "Bonus group " + i + ": Bad:        ";
         }
-        console.log(s1, numCases[i]);
-        console.log(s2, numOK[i], " ", (numOK[i] == numCases[i]) ? goodEmoji : badEmoji);
-        console.log(s3, numBad[i]);
+        process.stderr.write(s1 + " " + numCases[i] + "\n");
+        process.stderr.write(s2 + " " + numOK[i] + "   " + ((numOK[i] == numCases[i]) ? goodEmoji : badEmoji) + "\n");
+        process.stderr.write(s3 + " " + numBad[i] + "\n");
     }
 }
 function runOneTestcase() {
@@ -301,9 +302,15 @@ function runOneTestcase() {
                 timeout: 1000,
                 input: (stdin ? stdin : "")
             };
-            let rv = subprocess.spawnSync(ex, [], opts);
+            let rv;
+            try {
+                rv = subprocess.spawnSync(ex, [], opts);
+            }
+            catch (e) {
+                rv = { error: e };
+            }
             if (rv.error) {
-                if (rv.error.errno === "ETIMEDOUT")
+                if (rv.error.errno === "ETIMEDOUT" || rv.error.code === "ETIMEDOUT")
                     actualReturn = NEVER_RETURN;
                 else {
                     reportError(rv.error);
@@ -393,6 +400,7 @@ function runOneTestcase() {
 function main() {
     let inputfile = "inputs.json";
     let indata = fs.readFileSync(inputfile, "utf8");
+    indata = indata.replace(/\r\n/g, "\n");
     indata = indata.replace(/''((.|\n)*?)''/g, (x) => {
         x = x.substr(3);
         x = x.substr(0, x.length - 3);

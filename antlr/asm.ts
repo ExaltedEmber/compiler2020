@@ -37,6 +37,7 @@ class SymbolTable {
 }
 
 let asmCode: string[] = [];
+//----------------------------------these shouldn't be up here I guess bc redeclaration
 let symtable = new SymbolTable;
 let stringPool= new Map<string, string>();    //key=string const, val=label
 
@@ -65,10 +66,11 @@ export function makeAsm(root: TreeNode) {
 
 
 function programNodeCode(n: TreeNode) {
-    //program -> braceblock
+    //program -> var_decl_list braceblock
     if (n.sym != "program")
         ICE();
-    braceblockNodeCode(n.children[0]);
+    vardecllistNodeCode(n.children[0]);
+    braceblockNodeCode(n.children[1]);
 }
 
 function braceblockNodeCode(n: TreeNode) {
@@ -110,6 +112,16 @@ function assignNodeCode(n: TreeNode) {
     moveBytesFromStackToLocation(symtable.get(vname).location);
 }
 
+function vardecllistNodeCode(n: TreeNode)
+{
+    //var_decl_list -> var_decl SEMI var_decl_list | ;
+    if (n.children.length == 0)
+        return;
+    vardeclNodeCode(n.children[0]);
+    vardecllistNodeCode(n.children[2]);
+}
+
+
 function vardeclNodeCode(n: TreeNode) {
     //var-decl -> TYPE ID
     let vname = n.children[1].token.lexeme;
@@ -119,8 +131,7 @@ function vardeclNodeCode(n: TreeNode) {
 
 function typeNodeCode(n: TreeNode): VarType {
     //TYPE
-    let c = n.children[0].sym;
-    switch (c) {
+    switch (n.token.lexeme) {
         case "int": return VarType.INTEGER; break;
         case "double": return VarType.FLOAT; break;
         case "string": return VarType.STRING; break;
@@ -383,7 +394,7 @@ function factorNodeCode(n: TreeNode): VarType {
                 throw new console.error("ID does not exist");
             let v2 = symtable.get(child.token.lexeme);  //pull value from memory (if var is number, var holds value. if var is string, var holds address);
             emit(`push qword [${v2.location}]`);        //push to stack 
-
+            return symtable.get(child.token.lexeme).type;
 
         case "STRING_CONSTANT":
             let adr = stringconstantNodeCode(n.children[0]);

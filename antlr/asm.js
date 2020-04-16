@@ -55,10 +55,11 @@ function makeAsm(root) {
 }
 exports.makeAsm = makeAsm;
 function programNodeCode(n) {
-    //program -> braceblock
+    //program -> var_decl_list braceblock
     if (n.sym != "program")
         ICE();
-    braceblockNodeCode(n.children[0]);
+    vardecllistNodeCode(n.children[0]);
+    braceblockNodeCode(n.children[1]);
 }
 function braceblockNodeCode(n) {
     //braceblock -> LBR stmts RBR
@@ -99,6 +100,13 @@ function assignNodeCode(n) {
         throw new console.error("Type Mismatch");
     moveBytesFromStackToLocation(symtable.get(vname).location);
 }
+function vardecllistNodeCode(n) {
+    //var_decl_list -> var_decl SEMI var_decl_list | ;
+    if (n.children.length == 0)
+        return;
+    vardeclNodeCode(n.children[0]);
+    vardecllistNodeCode(n.children[2]);
+}
 function vardeclNodeCode(n) {
     //var-decl -> TYPE ID
     let vname = n.children[1].token.lexeme;
@@ -107,8 +115,7 @@ function vardeclNodeCode(n) {
 }
 function typeNodeCode(n) {
     //TYPE
-    let c = n.children[0].sym;
-    switch (c) {
+    switch (n.token.lexeme) {
         case "int":
             return VarType.INTEGER;
             break;
@@ -364,6 +371,7 @@ function factorNodeCode(n) {
                 throw new console.error("ID does not exist");
             let v2 = symtable.get(child.token.lexeme); //pull value from memory (if var is number, var holds value. if var is string, var holds address);
             emit(`push qword [${v2.location}]`); //push to stack 
+            return symtable.get(child.token.lexeme).type;
         case "STRING_CONSTANT":
             let adr = stringconstantNodeCode(n.children[0]);
             emit(`push qword ${adr}`); // Push address to stack
