@@ -7,6 +7,7 @@ class Grammar {
         this.nullable = new Set(); // nullables
         //first and follow sets go here too 
         this.first = new Map();
+        this.follow = new Map();
         let lines = s.split("\n");
         let terminalPhase = true;
         for (let num = 0; num < lines.length - 1; num++) {
@@ -56,7 +57,7 @@ class Grammar {
             }
         }
         this.getNullable();
-        //this.getFirst();
+        this.getFirst();
         /*
         let visited = new Set<string>();
         this.searchGrammar(visited, this.nonterminals.keys().next().value);
@@ -162,12 +163,96 @@ class Grammar {
         } while (!stable && count <= this.nonterminals.size + 50);
         return this.first;
     }
+    getFollow() {
+        this.follow.set(this.nonterminals.keys().next().value, new Set().add("$"));
+        let stable = true;
+        let didBreak = false;
+        do {
+            stable = true;
+            for (let N of this.nonterminals.keys()) {
+                for (let P of this.nonterminals.get(N)) {
+                    for (let i = 0; i < P.length; i++) { //if checking against another nonterminal, add firsts of that nonterminal to your follow, and check to see if it is nullable, if it is nullable move on to next y, otherwise break out. 
+                        let x = P[i];
+                        if (this.nonterminals.has(x)) {
+                            let xFollow = this.follow.get(x);
+                            if (xFollow == undefined) {
+                                xFollow = new Set();
+                            }
+                            for (let j = i + 1; j < P.length; j++) {
+                                let y = P[j];
+                                if (this.nonterminals.has(y)) {
+                                    let yFirst = this.first.get(y);
+                                    for (let z of yFirst) {
+                                        if (!xFollow.has(z)) {
+                                            xFollow.add(z);
+                                            stable = false;
+                                        }
+                                    }
+                                    if (!this.nullable.has(y)) {
+                                        break;
+                                    }
+                                }
+                                else {
+                                    if (!xFollow.has(y)) {
+                                        xFollow.add(y);
+                                        stable = false;
+                                    }
+                                    break;
+                                }
+                                //check if j is = P.length-1
+                                if (j == P.length - 1) {
+                                    if (this.follow.has(N)) {
+                                        for (let nf of this.follow.get(N)) {
+                                            if (!xFollow.has(nf)) {
+                                                xFollow.add(nf);
+                                                stable = false;
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        stable = false;
+                                    }
+                                }
+                            }
+                            if (i == P.length - 1 && this.nonterminals.has(x)) {
+                                if (this.follow.has(N)) {
+                                    for (let nf of this.follow.get(N)) {
+                                        if (!xFollow.has(nf)) {
+                                            xFollow.add(nf);
+                                            stable = false;
+                                        }
+                                    }
+                                }
+                                else {
+                                    stable = false;
+                                }
+                            }
+                            /*if (!didBreak) {
+                                let NFollow = this.follow.get(N);
+                                if (NFollow == undefined) {
+                                    NFollow = new Set<string>();
+                                }
+                                for (let x2 of xFollow) {
+                                    NFollow.add(x2);
+                                }
+                            }*/
+                            //didBreak = false;
+                            this.follow.set(x, xFollow);
+                        }
+                    }
+                }
+            }
+        } while (!stable);
+        return this.follow;
+    }
     printTest() {
         console.log(this.nullable);
         for (let p of this.nonterminals.keys()) {
             console.log(p + "=> \t" + this.nonterminals.get(p));
             console.log("first: \t");
             console.log(this.first.get(p));
+            console.log("follow: \t");
+            console.log(this.follow.get(p));
             console.log("\n");
         }
     }

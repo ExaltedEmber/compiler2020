@@ -7,6 +7,7 @@ class Grammar
     nullable: Set<string> = new Set(); // nullables
     //first and follow sets go here too 
     first: Map<string, Set<string>> = new Map();
+    follow: Map<string, Set<string>> = new Map();
     constructor(s: string)
     {
         let lines = s.split("\n");
@@ -68,7 +69,7 @@ class Grammar
         }
 
         this.getNullable();
-        //this.getFirst();
+        this.getFirst();
 
      
 
@@ -187,14 +188,95 @@ class Grammar
         return this.first;
     }
 
+    getFollow() {
+        this.follow.set(this.nonterminals.keys().next().value, new Set<string>().add("$"));
+        let stable = true;
+        let didBreak = false;
+        do {
+            stable = true;
+            for (let N of this.nonterminals.keys()) {
+                for (let P of this.nonterminals.get(N)) {
+                    for (let i = 0; i < P.length; i++) {        
+                        let x = P[i];
+                        if (this.nonterminals.has(x)) {
+                            let xFollow = this.follow.get(x);
+                            if (xFollow == undefined) {
+                                xFollow = new Set<string>();
+                            }
+
+                            for (let j = i + 1; j < P.length; j++) {
+                                let y = P[j];
+                                if (this.nonterminals.has(y)) {
+                                   
+                                    let yFirst = this.first.get(y);
+                                    for (let z of yFirst) {
+                                        if (!xFollow.has(z)) {
+                                            xFollow.add(z);
+                                            stable = false;
+                                        }
+                                    }
+
+                                    if (!this.nullable.has(y)) {
+                                        break;
+                                    }
+
+                                }
+                                else {
+
+                                    if (!xFollow.has(y)) {
+                                        xFollow.add(y);
+                                        stable = false;
+                                    }
+                                    break;
+                                }
+                                if (j == P.length - 1) {
+                                    if (this.follow.has(N)) {
+                                        for (let nf of this.follow.get(N)) {
+                                            if (!xFollow.has(nf)) {
+                                                xFollow.add(nf);
+                                                stable = false;
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        stable = false
+                                    }
+                                }
+                            }
+                            if (i == P.length - 1 && this.nonterminals.has(x)) {
+                                if (this.follow.has(N)) {
+                                    for (let nf of this.follow.get(N)) {
+                                        if (!xFollow.has(nf)) {
+                                            xFollow.add(nf);
+                                            stable = false;
+                                        }
+                                    }
+                                }
+                                else {
+                                    stable = false
+                                }
+                            }
+                            this.follow.set(x, xFollow);
+                        }
+                    }
+                }
+            }
+        }
+        while (!stable)
+        return this.follow;
+
+    }
+
+
     printTest() {
 
         console.log(this.nullable);
-
         for (let p of this.nonterminals.keys()) {
             console.log(p + "=> \t" + this.nonterminals.get(p));
             console.log("first: \t");
             console.log(this.first.get(p));
+            console.log("follow: \t");
+            console.log(this.follow.get(p));
             console.log("\n");
 
         }

@@ -9,14 +9,14 @@ function main() {
     let numFailed = 0;
     for (let i = 0; i < tests.length; ++i) {
         let name = tests[i]["name"];
-        let expected = tests[i]["first"];
+        let expected = tests[i]["follow"];
         let input = tests[i]["input"];
         let G = new Grammar_1.Grammar(input);
-        let first = G.getFirst();
+        let first = G.getFollow();
         if (!dictionariesAreSame(expected, first)) {
             console.log("Test " + name + " failed");
-            ++numFailed;
             G.printTest();
+            ++numFailed;
         }
         else
             ++numPassed;
