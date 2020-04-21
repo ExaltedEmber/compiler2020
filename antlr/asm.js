@@ -31,7 +31,8 @@ class SymbolTable {
     }
 }
 let asmCode = [];
-let symtable = new SymbolTable;
+//----------------------------------these shouldn't be up here I guess bc redeclaration
+let symtable = new SymbolTable();
 let stringPool = new Map(); //key=string const, val=label
 function emit(instr) {
     asmCode.push(instr);
@@ -40,6 +41,8 @@ function ICE() {
     throw new console.error("Internal Compiler Error");
 }
 function makeAsm(root) {
+    symtable = new SymbolTable;
+    stringPool = new Map();
     asmCode = [];
     labelCounter = 0;
     emit("default rel");
@@ -108,10 +111,29 @@ function vardecllistNodeCode(n) {
     vardecllistNodeCode(n.children[2]);
 }
 function vardeclNodeCode(n) {
-    //var-decl -> TYPE ID
-    let vname = n.children[1].token.lexeme;
-    let vtype = typeNodeCode(n.children[0]);
-    symtable.set(vname, new VarInfo(vtype, label()));
+    //var-decl -> TYPE var_decl_chain | TYPE assign
+    if (n.children[1].sym == "var_decl_chain") {
+        let vtype = typeNodeCode(n.children[0]);
+        vardeclchainNodeCode(n.children[1], vtype);
+    }
+    else {
+        let vtype = typeNodeCode(n.children[0]);
+        let vname = n.children[1].children[0].token.lexeme;
+        symtable.set(vname, new VarInfo(vtype, label()));
+        assignNodeCode(n.children[1]);
+    }
+}
+function vardeclchainNodeCode(n, vtype) {
+    //var_decl_chain -> ID | ID COMMA var_decl_chain
+    if (n.children.length == 1) {
+        let vname = n.children[0].token.lexeme;
+        symtable.set(vname, new VarInfo(vtype, label()));
+    }
+    else {
+        let vname = n.children[0].token.lexeme;
+        symtable.set(vname, new VarInfo(vtype, label()));
+        vardeclchainNodeCode(n.children[2], vtype);
+    }
 }
 function typeNodeCode(n) {
     //TYPE
@@ -383,7 +405,12 @@ function factorNodeCode(n) {
 function stringconstantNodeCode(n) {
     let s = n.token.lexeme;
     //strip leading and trailing quotation marks
+    s = s.substring(1, s.length - 1);
     //handle backslash escapes    // \\ \n \"
+    /*for (let i = 0; i < s.length - 1; i++) {
+        if (s[i] === "\\") {
+        }
+    }*/
     if (!stringPool.has(s))
         stringPool.set(s, label());
     return stringPool.get(s); // return the label
@@ -536,7 +563,7 @@ function outputSymbolTableInfo() {
     }
 }
 function outputStringPoolInfo() {
-    for (let key in stringPool.keys()) {
+    for (let key of stringPool.keys()) {
         let lbl = stringPool.get(key);
         emit(`${lbl}:`);
         for (let i = 0; i < key.length; ++i) {

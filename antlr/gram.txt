@@ -1,5 +1,6 @@
 grammar gram;
 SEMI : ';';
+COMMA : ',';
 WHILE : 'while';
 LP : [(];
 RP : [)];
@@ -27,7 +28,8 @@ COMMENT : '//' .*?'\n' -> skip;
 
 program : var_decl_list braceblock;
 var_decl_list : var_decl SEMI var_decl_list | ;
-var_decl : TYPE ID;
+var_decl : TYPE var_decl_chain | TYPE assign;
+var_decl_chain : ID | ID COMMA var_decl_chain;
 stmts : stmt stmts | ;
 stmt : cond | loop | return_stmt SEMI | assign SEMI;
 assign : ID EQ expr;

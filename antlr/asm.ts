@@ -38,7 +38,7 @@ class SymbolTable {
 
 let asmCode: string[] = [];
 //----------------------------------these shouldn't be up here I guess bc redeclaration
-let symtable = new SymbolTable;
+let symtable = new SymbolTable();
 let stringPool= new Map<string, string>();    //key=string const, val=label
 
 function emit(instr: string) {
@@ -50,6 +50,8 @@ function ICE() {
 }
 
 export function makeAsm(root: TreeNode) {
+    symtable = new SymbolTable;
+    stringPool = new Map<string, string>();
     asmCode = [];
     labelCounter = 0;
     emit("default rel");
@@ -123,11 +125,34 @@ function vardecllistNodeCode(n: TreeNode)
 
 
 function vardeclNodeCode(n: TreeNode) {
-    //var-decl -> TYPE ID
-    let vname = n.children[1].token.lexeme;
-    let vtype = typeNodeCode(n.children[0]);
-    symtable.set(vname, new VarInfo(vtype, label()));
+    //var-decl -> TYPE var_decl_chain | TYPE assign
+    if (n.children[1].sym == "var_decl_chain") {
+        let vtype = typeNodeCode(n.children[0]);
+        vardeclchainNodeCode(n.children[1], vtype);
+    }
+    else {
+        let vtype = typeNodeCode(n.children[0]);
+        let vname = n.children[1].children[0].token.lexeme;
+        symtable.set(vname, new VarInfo(vtype, label()));
+        assignNodeCode(n.children[1]);
+
+    }
 }
+
+function vardeclchainNodeCode(n: TreeNode, vtype: VarType) {
+    //var_decl_chain -> ID | ID COMMA var_decl_chain
+    if (n.children.length == 1) {
+        let vname = n.children[0].token.lexeme;
+        symtable.set(vname, new VarInfo(vtype, label()));
+    }
+    else {
+        let vname = n.children[0].token.lexeme;
+        symtable.set(vname, new VarInfo(vtype, label()));
+        vardeclchainNodeCode(n.children[2], vtype);
+    }
+
+}
+
 
 function typeNodeCode(n: TreeNode): VarType {
     //TYPE
@@ -395,7 +420,6 @@ function factorNodeCode(n: TreeNode): VarType {
             let v2 = symtable.get(child.token.lexeme);  //pull value from memory (if var is number, var holds value. if var is string, var holds address);
             emit(`push qword [${v2.location}]`);        //push to stack 
             return symtable.get(child.token.lexeme).type;
-
         case "STRING_CONSTANT":
             let adr = stringconstantNodeCode(n.children[0]);
             emit(`push qword ${adr}`);  // Push address to stack
@@ -408,7 +432,13 @@ function factorNodeCode(n: TreeNode): VarType {
 function stringconstantNodeCode(n: TreeNode) {
     let s = n.token.lexeme;
     //strip leading and trailing quotation marks
+    s = s.substring(1, s.length-1)
+    
     //handle backslash escapes    // \\ \n \"
+    /*for (let i = 0; i < s.length - 1; i++) {
+        if (s[i] === "\\") {
+        }
+    }*/
     if (!stringPool.has(s))
         stringPool.set(s, label());
     return stringPool.get(s); // return the label
@@ -545,7 +575,7 @@ function outputSymbolTableInfo() {
     }
 }
 function outputStringPoolInfo() {
-    for (let key in stringPool.keys()) {
+    for (let key of stringPool.keys()) {
         let lbl = stringPool.get(key);
         emit(`${lbl}:`);
         for (let i = 0; i < key.length; ++i) {

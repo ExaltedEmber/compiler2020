@@ -38,6 +38,15 @@ gramListener.prototype.exitVar_decl = function(ctx) {
 };
 
 
+// Enter a parse tree produced by gramParser#var_decl_chain.
+gramListener.prototype.enterVar_decl_chain = function(ctx) {
+};
+
+// Exit a parse tree produced by gramParser#var_decl_chain.
+gramListener.prototype.exitVar_decl_chain = function(ctx) {
+};
+
+
 // Enter a parse tree produced by gramParser#stmts.
 gramListener.prototype.enterStmts = function(ctx) {
 };
