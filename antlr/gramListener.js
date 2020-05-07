@@ -200,6 +200,24 @@ gramListener.prototype.exitFactor = function(ctx) {
 };
 
 
+// Enter a parse tree produced by gramParser#func_call.
+gramListener.prototype.enterFunc_call = function(ctx) {
+};
+
+// Exit a parse tree produced by gramParser#func_call.
+gramListener.prototype.exitFunc_call = function(ctx) {
+};
+
+
+// Enter a parse tree produced by gramParser#builtin_func_call.
+gramListener.prototype.enterBuiltin_func_call = function(ctx) {
+};
+
+// Exit a parse tree produced by gramParser#builtin_func_call.
+gramListener.prototype.exitBuiltin_func_call = function(ctx) {
+};
+
+
 // Enter a parse tree produced by gramParser#lambda.
 gramListener.prototype.enterLambda = function(ctx) {
 };

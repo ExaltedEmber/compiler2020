@@ -3,7 +3,8 @@ import { TreeNode } from"./parser";
 enum VarType {
     INTEGER,
     FLOAT,
-    STRING
+    STRING,
+    VOID
 }
 
 class VarInfo {
@@ -54,13 +55,35 @@ export function makeAsm(root: TreeNode) {
     stringPool = new Map<string, string>();
     asmCode = [];
     labelCounter = 0;
+    emit("%include \"doCall.asm\" ");
     emit("default rel");
     emit("section .text");
     emit("global main");
     emit("main:");
+    emit("mov arg0, 0");
+    emit("mov arg1, string_r");
+    emit("ffcall fdopen");
+    emit("mov [stdin], rax");
+    emit("mov arg0, 1");
+    emit("mov arg1, string_w");
+    emit("ffcall fdopen");
+    emit("mov [stdout], rax");
+
     programNodeCode(root);
     emit("ret");
     emit("section .data");
+    emit("stdin: dq 0");
+    emit("stdout: dq 0");
+    emit("string_r: db 'r', 0");
+    emit("string_w: db 'w', 0");
+    emit("string_a: db 'a', 0");
+    emit("string_rplus db 'r+', 0");
+    emit("string_percent_s: db '%s', 0");
+    emit("string_percent_d: db '%d', 0");
+    emit("fgets_buffer: times 64 db 0");
+    emit("now: dq 0");
+    emit("nowAsTm: dq 0");
+    emit("p: dq 0");
     outputSymbolTableInfo();
     outputStringPoolInfo();
     return asmCode.join("\n");
@@ -100,6 +123,8 @@ function stmtNodeCode(n: TreeNode) {
             returnstmtNodeCode(c); break;
         case "assign":
             assignNodeCode(c); break;
+        case "func_call":
+            funccallNodeCode(c); break;
         default:
             ICE();
     }
@@ -396,7 +421,7 @@ function typecastNodeCode(n: TreeNode): VarType {
 
 
 function factorNodeCode(n: TreeNode): VarType {
-    //factor -> NUM | FPNUM | LP expr RP | STRING_CONSTANT | ID
+    //factor -> NUM | FPNUM | LP expr RP | STRING_CONSTANT | ID | func-call
     let child = n.children[0];
     switch (child.sym) {
         case "NUM":
@@ -424,7 +449,14 @@ function factorNodeCode(n: TreeNode): VarType {
             let adr = stringconstantNodeCode(n.children[0]);
             emit(`push qword ${adr}`);  // Push address to stack
             return VarType.STRING;
-        default:
+        case "func_call":
+            let type = funccallNodeCode(n.children[0]);
+            if (type === VarType.VOID)
+                throw new console.error("No Void");
+                //error: Can't use void in expression
+            emit("push rax");
+            return type;
+            break;        default:
             ICE();
     }
 }
@@ -433,15 +465,33 @@ function stringconstantNodeCode(n: TreeNode) {
     let s = n.token.lexeme;
     //strip leading and trailing quotation marks
     s = s.substring(1, s.length-1)
-    
+    let s2 = "";
     //handle backslash escapes    // \\ \n \"
-    /*for (let i = 0; i < s.length - 1; i++) {
+    for (let i = 0; i < s.length; i++) {
         if (s[i] === "\\") {
+            if (s[i + 1] === "\"") {
+                s2 += "\"";
+                i += 1;
+            }
+            else if (s[i + 1] === "n") {
+                s2 += "\n";
+                i += 1;
+            }
+            else if (s[i + 1] == "\\") {
+                s2 += "\\"
+                i += 1;
+            }
+            else {
+                s2 += s[i];
+            }
         }
-    }*/
-    if (!stringPool.has(s))
-        stringPool.set(s, label());
-    return stringPool.get(s); // return the label
+        else {
+            s2 += s[i];
+        }
+    }
+    if (!stringPool.has(s2))
+        stringPool.set(s2, label());
+    return stringPool.get(s2); // return the label
 }
 
 
@@ -533,6 +583,138 @@ function loopNodeCode(n: TreeNode) {
     emit(`jmp ${topLoop}`);
     emit(`${exitLoop}:`)
 }
+
+function funccallNodeCode(n: TreeNode): VarType {
+    return builtinfunccallNodeCode(n.children[0]);
+}
+
+function builtinfunccallNodeCode(n: TreeNode): VarType {
+    //builtin-func-call -> PRINT LP expr RP | INPUT LP RP |
+    //OPEN LP expr RP | READ LP expr RP | WRITE LP expr CMA expr RP CLOSE LP expr RP | NOW LP RP
+    switch (n.children[0].sym) {
+        case "OPEN":
+            {
+                let type = exprNodeCode(n.children[2]);
+                if (type !== VarType.STRING)
+                    throw new console.error("must be string");
+                //tmp = fopen( filename, "a" );
+                emit("mov arg0, [rsp]");        //filename (string)
+                emit("mov arg1, string_a");    //next slide
+                emit("ffcall fopen");
+                //fclose(tmp)
+                emit("mov arg0, rax")
+                emit("ffcall fclose");
+                //fopen( filename, "r+" )
+                emit("pop arg0");        //filename; remove from stack
+                emit("mov arg1, string_rplus"); //next slide
+                emit("ffcall fopen");     //result is in rax
+                return VarType.INTEGER;
+            }
+        case "CLOSE":
+            {
+                let type = exprNodeCode(n.children[2]);
+                if (type !== VarType.INTEGER)
+                    throw new console.error("requires numeric arg");
+                emit("pop arg0"); //argument for fclose
+                emit("ffcall fclose");
+                return VarType.VOID;
+            }
+        case "WRITE":
+            {
+                // WRITE LP expr CMA expr RP
+                // fprintf( fp, "%s", str )  or  fprintf( fp, "%d", num )
+                let handletype = exprNodeCode(n.children[2]);
+                if (handletype !== VarType.INTEGER)
+                    throw new console.error("must be int");
+                let outputtype = exprNodeCode(n.children[4]);
+                let fmt: string;
+                if (outputtype === VarType.INTEGER)
+                    fmt = "string_percent_d";
+                else if (outputtype === VarType.STRING)
+                    fmt = "string_percent_s";
+                else
+                    throw new console.error("must be int or str");
+                emit("pop arg2");   //the thing to print
+                emit(`mov arg1, ${fmt}`);
+                emit("pop arg0");   //the handle
+                emit("ffvcall fprintf,0");
+                //need to call fflush(NULL)
+                emit("mov arg0, 0");
+                emit("ffcall fflush");
+                return VarType.VOID;
+            }
+        case "INPUT":
+            {
+                //INPUT LP RP
+                //fgets( ptr, size, stream)
+                //strtol( ptr, eptr, base )
+                emit("mov arg0, fgets_buffer");
+                emit("mov arg1, 64");
+                emit("mov arg2, [stdin]");
+                emit("ffcall fgets");
+                //should do error checking...
+                emit("mov arg0, fgets_buffer");
+                emit("mov arg1, 0");
+                emit("mov arg2, 10");
+                emit("ffcall strtol");  //result is in rax
+                return VarType.INTEGER;
+            }
+        case "READ":
+            {
+                //READ LP expr RP 
+                //fgets( ptr, size, stream)
+                //strtol( ptr, eptr, base )
+                let exprtype = exprNodeCode(n.children[2]);
+                if (exprtype !== VarType.INTEGER)
+                    throw new console.error("must be int");
+
+                emit("mov arg0, fgets_buffer");
+                emit("mov arg1, 64");
+                emit("pop arg2");
+                emit("ffcall fgets");
+                //should do error checking...
+                emit("mov arg0, fgets_buffer");
+                emit("mov arg1, 0");
+                emit("mov arg2, 10");
+                emit("ffcall strtol");  //result is in rax
+                return VarType.INTEGER;
+            }
+        case "PRINT":
+            {
+                //PRINT LP expr RP
+                let handletype = exprNodeCode(n.children[2]);
+                let fmt: string;
+                if (handletype === VarType.INTEGER)
+                    fmt = "string_percent_d";
+                else if (handletype === VarType.STRING)
+                    fmt = "string_percent_s";
+                else
+                    throw new console.error("must be int or str");
+                emit("pop arg1");   //the thing to print
+                emit(`mov arg0, ${fmt}`);
+                emit("ffvcall printf,0");
+                //need to call fflush(NULL)
+                emit("mov arg0, 0");
+                emit("ffcall fflush");
+                return VarType.VOID;
+            }
+        case "NOW":
+            {
+                emit("mov arg0, 0");
+                emit("ffcall time");
+                emit("mov [now], rax");
+                emit("mov arg0, now");
+                emit("ffcall localtime");
+                emit("mov [nowAsTm], rax");
+                emit("mov arg0, [nowAsTm]");
+                emit("ffcall asctime");
+                emit("mov [p], rax");
+                return VarType.STRING;
+            }
+    }
+
+}
+
 
 let labelCounter = 0;
 function label() {
